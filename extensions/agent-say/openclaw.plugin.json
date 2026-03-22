@@ -1,0 +1,35 @@
+{
+  "id": "agent-say",
+  "name": "Agent Say",
+  "description": "agent_say tool for multi-agent Feishu group chat: broadcasts to group + injects into agent sessions",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "groups": {
+        "type": "object",
+        "description": "Map of group name → { chat_id, targets[] }",
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "chat_id": { "type": "string" },
+            "targets": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          },
+          "required": ["chat_id"]
+        }
+      },
+      "feishuAccountId": {
+        "type": "string",
+        "description": "Feishu account id to use (default: 'default')"
+      },
+      "timeoutSeconds": {
+        "type": "number",
+        "description": "Session send timeout (0 = fire-and-forget)",
+        "default": 0
+      }
+    }
+  }
+}

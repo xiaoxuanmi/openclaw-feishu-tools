@@ -1,0 +1,296 @@
+#!/usr/bin/env python3
+"""
+read_session - 读取并格式化显示指定 Agent 的最新 session 记录
+用法: ./read_session <agentId>
+"""
+
+import os
+import sys
+import json
+import time
+from datetime import datetime
+from pathlib import Path
+
+class SessionReader:
+    def __init__(self, agent_id):
+        self.agent_id = agent_id
+        self.session_dir = Path.home() / ".openclaw" / "agents" / agent_id / "sessions"
+        
+    def find_latest_session(self):
+        """查找最新的 .jsonl 文件"""
+        if not self.session_dir.exists():
+            print(f"错误: 目录不存在: {self.session_dir}")
+            print("请确认 agentId 是否正确，以及该 Agent 是否有 session 记录。")
+            return None
+        
+        jsonl_files = list(self.session_dir.glob("*.jsonl"))
+        if not jsonl_files:
+            print(f"提示: 在 {self.session_dir} 中未找到 .jsonl 文件。")
+            return None
+        
+        # 按修改时间排序，取最新的
+        latest_file = max(jsonl_files, key=lambda f: f.stat().st_mtime)
+        return latest_file
+    
+    def extract_text_content(self, content):
+        """从消息内容中提取文本"""
+        if isinstance(content, str):
+            return content
+        
+        if isinstance(content, dict):
+            # 如果是字典，尝试提取 text 字段
+            return content.get("text", str(content))
+        
+        if isinstance(content, list):
+            # 如果是列表，递归提取
+            texts = []
+            for item in content:
+                if isinstance(item, dict):
+                    item_type = item.get("type")
+                    if item_type == "text":
+                        text_content = item.get("text", "")
+                        texts.append(text_content)
+                    elif item_type == "thinking":
+                        thinking_content = item.get("thinking", "")
+                        texts.append(f"[思考]: {thinking_content}")
+                    elif "content" in item:
+                        # 递归处理嵌套内容
+                        sub_text = self.extract_text_content(item["content"])
+                        if sub_text:
+                            texts.append(sub_text)
+                elif isinstance(item, str):
+                    texts.append(item)
+            return "\n".join(filter(None, texts))
+        
+        return str(content)
+    
+    def format_messages(self, content):
+        """格式化消息内容"""
+        formatted = []
+        
+        if not content:
+            return formatted
+        
+        if isinstance(content, str):
+            # 直接是文本
+            formatted.append(f"    {content}")
+        
+        elif isinstance(content, dict):
+            # 单个消息对象
+            msg_type = content.get("type", "")
+            if msg_type == "text":
+                text_content = content.get("text", "")
+                if text_content:
+                    formatted.append(f"    文本: {text_content}")
+            elif msg_type == "thinking":
+                thinking_content = content.get("thinking", "")
+                if thinking_content:
+                    formatted.append(f"    思考: {thinking_content}")
+            elif msg_type == "toolCall":
+                tool_name = content.get("name", "unknown")
+                args = content.get("arguments", {})
+                formatted.append(f"    工具调用 ({tool_name}):")
+                if args:
+                    args_str = json.dumps(args, ensure_ascii=False, indent=6)
+                    formatted.append(f"        参数: {args_str}")
+        
+        elif isinstance(content, list):
+            # 消息列表
+            for item in content:
+                if isinstance(item, dict):
+                    msg_type = item.get("type", "")
+                    
+                    if msg_type == "text":
+                        text_content = item.get("text", "")
+                        if text_content:
+                            formatted.append(f"    文本: {text_content}")
+                    
+                    elif msg_type == "thinking":
+                        thinking_content = item.get("thinking", "")
+                        if thinking_content:
+                            # 对长思考内容进行格式化
+                            lines = thinking_content.split('\n')
+                            for i, line in enumerate(lines):
+                                if i == 0:
+                                    formatted.append(f"    思考: {line}")
+                                else:
+                                    formatted.append(f"            {line}")
+                    
+                    elif msg_type == "toolCall":
+                        tool_name = item.get("name", "unknown")
+                        args = item.get("arguments", {})
+                        formatted.append(f"    工具调用 ({tool_name}):")
+                        if args:
+                            args_str = json.dumps(args, ensure_ascii=False, indent=8)
+                            for line in args_str.split('\n'):
+                                formatted.append(f"            {line}")
+                    
+                    elif msg_type == "toolResult":
+                        result = item.get("content", "{}")
+                        if isinstance(result, str):
+                            try:
+                                result = json.loads(result)
+                            except:
+                                pass
+                        
+                        if isinstance(result, dict):
+                            status = "完成" if not item.get("isError", False) else "错误"
+                            formatted.append(f"    工具结果 ({status}):")
+                            result_str = json.dumps(result, ensure_ascii=False, indent=8)
+                            for line in result_str.split('\n'):
+                                formatted.append(f"            {line}")
+        
+        return formatted
+    
+    def format_timestamp(self, timestamp):
+        """格式化时间戳"""
+        if isinstance(timestamp, str):
+            return timestamp
+        elif isinstance(timestamp, (int, float)):
+            # 处理毫秒时间戳
+            if timestamp > 1e10:  # 可能是毫秒
+                timestamp = timestamp / 1000
+            return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
+        return str(timestamp)
+    
+    def parse_session_file(self, file_path):
+        """解析 session 文件"""
+        print(f"\n\033[36m========== 开始解析 session 记录 ==========\033[0m\n")
+        
+        line_num = 0
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line_num, line in enumerate(f, 1):
+                line = line.strip()
+                if not line:
+                    continue
+                
+                try:
+                    data = json.loads(line)
+                    
+                    # 提取基本信息
+                    record_type = data.get("type", "N/A")
+                    
+                    # 根据类型处理不同的字段
+                    if record_type == "session":
+                        # session 开始记录
+                        print(f"\033[33m[SESSION START]\033[0m")
+                        print(f"ID: {data.get('id', 'N/A')}")
+                        print(f"版本: {data.get('version', 'N/A')}")
+                        timestamp = data.get("timestamp")
+                        if timestamp:
+                            print(f"时间: {self.format_timestamp(timestamp)}")
+                        print(f"工作目录: {data.get('cwd', 'N/A')}")
+                        print("-" * 80)
+                    
+                    elif record_type == "message":
+                        # 消息记录
+                        message = data.get("message", {})
+                        role = message.get("role", "N/A")
+                        timestamp = data.get("timestamp")
+                        
+                        print(f"\033[34m[消息 #{line_num}]\033[0m")
+                        print(f"时间: {self.format_timestamp(timestamp)}")
+                        print(f"角色: {role}")
+                        
+                        # 处理消息内容
+                        content = message.get("content")
+                        if content:
+                            formatted_msgs = self.format_messages(content)
+                            if formatted_msgs:
+                                print("消息内容:")
+                                for msg in formatted_msgs:
+                                    print(msg)
+                            else:
+                                print("消息内容: (无文本内容)")
+                        
+                        # 其他有用信息
+                        stop_reason = message.get("stopReason")
+                        if stop_reason:
+                            print(f"停止原因: {stop_reason}")
+                        
+                        usage = message.get("usage")
+                        if usage:
+                            print(f"使用量: {json.dumps(usage, ensure_ascii=False)}")
+                        
+                        print("-" * 80)
+                    
+                    elif record_type in ["thinking_level_change", "model_change", "custom"]:
+                        # 其他记录类型，简单显示
+                        timestamp = data.get("timestamp")
+                        print(f"\033[90m[{record_type.upper()}]\033[0m")
+                        print(f"时间: {self.format_timestamp(timestamp)}")
+                        
+                        if record_type == "thinking_level_change":
+                            print(f"思考级别: {data.get('thinkingLevel', 'N/A')}")
+                        elif record_type == "model_change":
+                            print(f"模型: {data.get('provider', 'N/A')}/{data.get('modelId', 'N/A')}")
+                        elif record_type == "custom":
+                            custom_type = data.get("customType", "unknown")
+                            print(f"自定义类型: {custom_type}")
+                            data_content = data.get("data", {})
+                            if data_content:
+                                print(f"数据: {json.dumps(data_content, ensure_ascii=False, indent=2)}")
+                        
+                        print("-" * 80)
+                    
+                    else:
+                        # 未知类型
+                        print(f"\033[90m[未知记录类型: {record_type}]\033[0m")
+                        print(f"行 {line_num}: {json.dumps(data, ensure_ascii=False)[:200]}...")
+                        print("-" * 80)
+                
+                except json.JSONDecodeError as e:
+                    print(f"\033[31m行 {line_num}: JSON 解析错误\033[0m")
+                    print(f"  错误: {e}")
+                    print(f"  原始行摘要: {line[:200]}...")
+                    print("-" * 80)
+                except Exception as e:
+                    print(f"\033[31m行 {line_num}: 处理错误\033[0m")
+                    print(f"  错误类型: {type(e).__name__}")
+                    print(f"  错误详情: {e}")
+                    print(f"  原始行摘要: {line[:200]}...")
+                    print("-" * 80)
+        
+        print(f"\n\033[36m========== 解析完成，共处理 {line_num} 行 ==========\033[0m")
+    
+    def run(self):
+        """主运行函数"""
+        if len(sys.argv) < 2:
+            print("错误: 请提供 agentId 作为参数。")
+            print("用法: ./read_session <agentId>")
+            sys.exit(1)
+        
+        file_path = self.find_latest_session()
+        if not file_path:
+            sys.exit(1)
+        
+        # 显示文件信息
+        mod_time = datetime.fromtimestamp(file_path.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+        file_size = file_path.stat().st_size
+        
+        print(f"\033[36m找到最新的 session 文件:\033[0m")
+        print(f"  完整路径: \033[32m{file_path}\033[0m")
+        print(f"  文件名: \033[32m{file_path.name}\033[0m")
+        print(f"  修改时间: \033[33m{mod_time}\033[0m")
+        print(f"  文件大小: \033[35m{file_size:,} 字节\033[0m")
+        print()
+        
+        try:
+            input("按回车键开始解析，或按 Ctrl+C 取消... ")
+        except KeyboardInterrupt:
+            print("\n已取消。")
+            sys.exit(0)
+        
+        self.parse_session_file(file_path)
+
+def main():
+    if len(sys.argv) < 2:
+        print("错误: 请提供 agentId 作为参数。")
+        print("用法: ./read_session <agentId>")
+        sys.exit(1)
+    
+    reader = SessionReader(sys.argv[1])
+    reader.run()
+
+if __name__ == "__main__":
+    main()

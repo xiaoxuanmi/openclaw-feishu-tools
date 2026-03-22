@@ -1,0 +1,9 @@
+{
+  "name": "agent-say",
+  "version": "1.0.0",
+  "description": "agent_say tool — Feishu group broadcast + cross-agent session injection for multi-robot group chats",
+  "type": "module",
+  "openclaw": {
+    "extensions": ["./index.ts"]
+  }
+}
