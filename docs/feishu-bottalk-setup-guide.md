@@ -27,19 +27,19 @@
 ├── workspace/                             # main agent 工作区
 │   ├── SOUL.md                            # 人设（性格、价值观、语气）
 │   ├── AGENTS.md                          # 行为规范 + 回复协议 + 防循环规则
-│   ├── TOOLS.md                           # 飞书身份备注
+│   ├── TOOLS.md                           # 工具备注（按需添加）
 │   ├── IDENTITY.md                        # agent 身份信息
 │   └── ...
 ├── workspace-rd/                          # rd agent 工作区
 │   ├── SOUL.md                            # 研发人设
 │   ├── AGENTS.md                          # 行为规范 + 回复协议 + 防循环规则
-│   ├── TOOLS.md                           # 飞书身份备注
+│   ├── TOOLS.md                           # 工具备注（按需添加）
 │   ├── IDENTITY.md
 │   └── ...
 └── workspace-pm/                          # pm agent 工作区
     ├── SOUL.md                            # 产品人设
     ├── AGENTS.md                          # 行为规范 + 回复协议 + 防循环规则
-    ├── TOOLS.md                           # 飞书身份备注
+    ├── TOOLS.md                           # 工具备注（按需添加）
     ├── IDENTITY.md
     └── ...
 ```
@@ -313,14 +313,6 @@ mkdir -p ~/.openclaw/workspace-pm
 - 用 `agent_say` 回到群里
 ```
 
-#### TOOLS.md（飞书身份）
-
-```markdown
-### 飞书身份
-- agent_id: main
-- 账号名: 主 agent
-```
-
 ### 5.3 rd agent — `~/.openclaw/workspace-rd/`
 
 #### SOUL.md
@@ -398,25 +390,12 @@ _代码是给人看的，顺便让机器能执行。_
 
 1. 读取 `SOUL.md` — 你的人格
 2. 读取 `AGENTS.md` — 行为规范和回复协议
-3. 读取 `TOOLS.md` — 你的工具和飞书身份
 
 ## 红线
 
 - 不要泄露其他 agent 的私人信息
 - 群聊中你是参与者，不是主人的代言人
 - 遇到不确定的，问，不要猜
-```
-
-#### TOOLS.md
-
-```markdown
-# TOOLS.md - 研发小工的工具备注
-
-## 飞书身份
-
-- agent_id: rd
-- 飞书 App ID: （你的 rd 应用 App ID）
-- 账号名: 研发小工
 ```
 
 #### IDENTITY.md
@@ -512,25 +491,12 @@ _好的产品是设计出来的，不是堆出来的。_
 
 1. 读取 `SOUL.md` — 你的人格
 2. 读取 `AGENTS.md` — 行为规范和回复协议
-3. 读取 `TOOLS.md` — 你的工具和飞书身份
 
 ## 红线
 
 - 不要泄露其他 agent 的私人信息
 - 群聊中你是参与者，不是主人的代言人
 - 遇到不确定的，问，不要猜
-```
-
-#### TOOLS.md
-
-```markdown
-# TOOLS.md - 产品小理的工具备注
-
-## 飞书身份
-
-- agent_id: pm
-- 飞书 App ID: （你的 pm 应用 App ID）
-- 账号名: 产品小理
 ```
 
 #### IDENTITY.md
@@ -626,6 +592,6 @@ curl -s -X POST http://127.0.0.1:18789/tools/invoke \
 - [ ] `openclaw.json` 中 `channels.feishu.accounts` 配置 3 个应用凭证
 - [ ] `openclaw.json` 中 `bindings` 绑定 3 个 agent 到对应飞书账号
 - [ ] `openclaw.json` 中 `tools.sessions.visibility = "all"` 且 `tools.agentToAgent.enabled = true`
-- [ ] 3 个工作区各有 SOUL.md（人设）、AGENTS.md（回复协议 + 防循环）、TOOLS.md（飞书身份）
+- [ ] 3 个工作区各有 SOUL.md（人设）和 AGENTS.md（回复协议 + 防循环）
 - [ ] SOUL.md 中**没有**消息收发规则（行为协议只在 AGENTS.md）
 - [ ] Gateway 启动成功，插件加载无报错
