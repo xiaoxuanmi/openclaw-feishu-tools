@@ -1,7 +1,7 @@
 {
   "id": "agent-say",
   "name": "Agent Say",
-  "description": "agent_say tool for multi-agent Feishu group chat: broadcasts to group + injects into agent sessions",
+  "description": "agent-say tool for multi-agent Feishu group chat: broadcasts to group + injects into agent sessions",
   "configSchema": {
     "type": "object",
     "additionalProperties": false,
