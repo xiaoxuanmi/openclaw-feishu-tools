@@ -3,7 +3,7 @@ import type { AgentSayConfig } from "./src/types.js";
 import { sendFeishuMessage } from "./src/feishu-client.js";
 import { injectSessionMessage } from "./src/session-inject.js";
 
-const TOOL_NAME = "agent_say";
+const TOOL_NAME = "agent-say";
 
 function resolvePluginConfig(api: OpenClawPluginApi): AgentSayConfig {
   const raw = (api.config?.plugins?.entries as Record<string, unknown>)?.["agent-say"];
@@ -221,5 +221,5 @@ export default function register(api: OpenClawPluginApi) {
     },
   );
 
-  api.logger.info?.("agent_say: Registered agent_say tool");
+  api.logger.info?.("agent-say: Registered agent-say tool");
 }
